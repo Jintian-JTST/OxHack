@@ -147,12 +147,16 @@ helper starts are serialized; manual starts must respect the same writer rule.
 
 The optional independent recording runs `backend.ingest record` in
 `.local/worktrees/bus29-short` for route
-`bus-29-outbound-mornington-crescent-tottenham-court-road`. Each invocation creates
-a new `.local/runs/bus29-short-<UTC timestamp>/` there with `recorder.log` and
-`recorder.err`; it can start even when the database recorder is already running.
+`bus-29-outbound-mornington-crescent-tottenham-court-road`. Each invocation starts
+a recorder that creates a new `.local/runs/bus29-short-<UTC timestamp>/` there; the
+recorder refuses an existing directory, so stdout/stderr go to the sibling
+`bus29-short-<UTC timestamp>.log` and `.err`, as for runs started by hand. A running
+independent recorder blocks another bus 29 launch; it can start even when the
+database recorder is already running.
 Existing environments/configuration must already be prepared. `-Check` shows
 processes, selected database health counts and the latest run status/counts from
-the last log line (also supporting older sibling `.log` files). Missing data or
+the last log line (also reading a `recorder.log` left inside a run by the earlier
+helper layout). Missing data or
 failed health checks are reported as unavailable with error details hidden.
 No environment-file contents or connection strings are printed. The helper never
 stops processes or deletes files. A launch PID alone does not prove collection;

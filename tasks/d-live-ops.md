@@ -65,3 +65,24 @@ Latest independent bus 29 recording:
   status: recording
   last_log: polls=51 independent_trips=1
 ```
+
+### Fix: bus 29 start, 2026-10-24 16:40 UTC (17:40 London)
+
+Owner for this fix: Claude, after Jintian moved Codex's D work to Claude.
+
+- Bug: `-Start -StartBus29Minutes` created the run directory before launching
+  `backend.ingest record`, which calls `mkdir(exist_ok=False)`. The recorder
+  printed `FileExistsError` and exited at once, so no bus 29 run could start
+  through the helper. The earlier checks mocked `Start-Process` and missed it.
+- Fix: the helper no longer creates the run directory; logs go to the sibling
+  `bus29-short-<stamp>.log`/`.err`, matching runs started by hand and the
+  existing `-Check` fallback. A running `backend.ingest record` process now
+  blocks another bus 29 launch (its `replay` children do not).
+- Checks (Linux, PowerShell 7.4.6 with mocked `Get-CimInstance` and a fake
+  Python that refuses an existing run directory, like the real recorder): parser
+  0 errors; the original script reproduced `FileExistsError`; the fixed script
+  launched with the run directory absent, a repository path containing a space
+  and logs beside the run; a mocked running recorder refused the launch.
+  `python -m backend.ingest record` against an existing directory printed
+  `FileExistsError` and exited 2. Windows PowerShell 5.1 and a real launch
+  remain unverified.

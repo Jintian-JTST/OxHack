@@ -94,7 +94,7 @@ function Show-BusRecording {
     catch {
         Write-Output '  status: unavailable (run.json missing or unreadable)'
     }
-    # New runs keep logs inside the run; existing runs use a sibling .log file.
+    # Runs keep a sibling .log file; recorder.log inside a run is from the earlier helper layout.
     $log = Join-Path $latest.FullName 'recorder.log'
     if (-not (Test-Path -LiteralPath $log -PathType Leaf)) {
         $log = $latest.FullName + '.log'
@@ -175,13 +175,20 @@ try {
             -not (Test-Path -LiteralPath $SystemPython -PathType Leaf)) {
             throw 'Bus 29 workspace or system Python missing; independent recorder not started.'
         }
-        $stamp = [DateTime]::UtcNow.ToString('yyyyMMddTHHmmssfffffffZ')
-        $run = Join-Path $RunsRoot ('bus29-short-' + $stamp)
-        if (Test-Path -LiteralPath $run) { throw 'Run directory already exists; files preserved.' }
-        New-Item -ItemType Directory -Path $run | Out-Null
-        $minutes = $StartBus29Minutes.ToString([System.Globalization.CultureInfo]::InvariantCulture)
-        Start-HiddenPython $SystemPython $BusWorkspace @('-u', '-m', 'backend.ingest', 'record',
-            '--route-id', $BusRoute, '--run', ('"' + $run + '"'), '--minutes', $minutes) (Join-Path $run 'recorder')
+        $busWriters = @(Get-RecorderProcesses | Where-Object { $_.CommandLine -match '\bbackend\.ingest\s+record\b' })
+        if ($busWriters.Count -gt 0) {
+            Write-Output 'Bus 29 start refused: an independent recorder is already running. Existing processes preserved.'
+        }
+        else {
+            $stamp = [DateTime]::UtcNow.ToString('yyyyMMddTHHmmssfffffffZ')
+            $run = Join-Path $RunsRoot ('bus29-short-' + $stamp)
+            if (Test-Path -LiteralPath $run) { throw 'Run directory already exists; files preserved.' }
+            # The recorder creates the run directory and refuses an existing one, so logs sit beside it.
+            [System.IO.Directory]::CreateDirectory($RunsRoot) | Out-Null
+            $minutes = $StartBus29Minutes.ToString([System.Globalization.CultureInfo]::InvariantCulture)
+            Start-HiddenPython $SystemPython $BusWorkspace @('-u', '-m', 'backend.ingest', 'record',
+                '--route-id', $BusRoute, '--run', ('"' + $run + '"'), '--minutes', $minutes) $run
+        }
     }
 }
 finally {
